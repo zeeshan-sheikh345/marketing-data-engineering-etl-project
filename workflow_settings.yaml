@@ -1,0 +1,4 @@
+defaultProject: graphic-mason-480715-m3
+defaultDataset: analytics
+defaultAssertionDataset: dataform_assertions
+dataformCoreVersion: 3.0.42
