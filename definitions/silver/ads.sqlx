@@ -10,8 +10,8 @@ config {
 
 WITH source AS (
   SELECT
-    LOWER(TRIM(campaign_id)) AS campaign_id,
-    LOWER(TRIM(campaign_name)) AS campaign_name,
+    campaign_id AS campaign_id,
+    campaign_name AS campaign_name,
     PARSE_DATE('%m/%d/%Y', date) AS date,
 
     SAFE_CAST(impressions AS INT64) AS impressions,
