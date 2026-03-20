@@ -1,0 +1,48 @@
+config {
+  type: "table",
+  schema: "gold",
+  name: "int_campaign_performance",
+  bigquery: {
+    partitionBy: "date",
+    clusterBy: ["campaign_id"]
+  }
+}
+
+WITH source AS (
+  SELECT *
+  FROM ${ref("int_orders")}
+),
+
+-- 🧹 Clean (defensive)
+cleaned AS (
+  SELECT *
+  FROM source
+  WHERE event_date IS NOT NULL
+    AND campaign_id IS NOT NULL
+),
+
+-- 📊 Aggregate to campaign-day level
+aggregated AS (
+  SELECT
+    event_date AS date,
+    campaign_id,
+
+    -- 📦 Order metrics
+    COUNT(DISTINCT transaction_id) AS orders,
+
+    -- 💰 Revenue metrics
+    SUM(total_revenue) AS revenue,
+
+    -- 🔁 Returns
+    SUM(total_returned_items) AS returned_items,
+
+    -- 📊 Additional insights
+    AVG(product_count) AS avg_products_per_order
+
+  FROM cleaned
+  GROUP BY 1,2
+)
+
+-- 🚀 Final
+SELECT *
+FROM aggregated

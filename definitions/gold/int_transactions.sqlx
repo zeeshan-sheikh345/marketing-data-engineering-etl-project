@@ -1,0 +1,62 @@
+config {
+  type: "incremental",
+  schema: "gold",
+  name: "int_transactions",
+  uniqueKey: ["transaction_id", "product_id"],
+  bigquery: {
+    partitionBy: "event_date",
+    clusterBy: ["campaign_id"]
+  }
+}
+
+WITH ga4 AS (
+  SELECT *
+  FROM ${ref("ga4")}
+
+  ${when(incremental(), `
+    WHERE event_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)
+  `)}
+),
+
+crm AS (
+  SELECT *
+  FROM ${ref("crm")}
+
+  ${when(incremental(), `
+    WHERE order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+  `)}
+),
+
+-- 🔗 Join GA4 + CRM
+joined AS (
+  SELECT
+    g.event_date,
+    g.campaign_id,
+
+    g.transaction_id,
+    g.product_id,
+
+    c.order_id,
+    c.net_revenue,
+    c.is_returned,
+
+    -- 🔍 Debugging column (VERY IMPORTANT)
+    DATE_DIFF(g.event_date, c.order_date, DAY) AS date_diff
+
+  FROM ga4 g
+  LEFT JOIN crm c
+    ON g.transaction_id = c.order_id
+    AND g.product_id = c.product_id
+),
+
+-- 🧹 Clean (optional but good practice)
+cleaned AS (
+  SELECT *
+  FROM joined
+  WHERE transaction_id IS NOT NULL
+    AND product_id IS NOT NULL
+)
+
+-- 🚀 Final Output
+SELECT *
+FROM cleaned

@@ -1,0 +1,51 @@
+config {
+  type: "table",
+  schema: "silver",
+  name: "ads",
+  bigquery: {
+    partitionBy: "date",
+    clusterBy: ["campaign_id"]
+  }
+}
+
+WITH source AS (
+  SELECT
+    campaign_id AS campaign_id,
+    campaign_name AS campaign_name,
+    PARSE_DATE('%m/%d/%Y', date) AS date,
+
+    SAFE_CAST(impressions AS INT64) AS impressions,
+    SAFE_CAST(clicks AS INT64) AS clicks,
+    SAFE_CAST(cost AS FLOAT64) AS spend,  -- ✅ renamed
+
+    LOWER(TRIM(creative_name)) AS creative_name,
+    CURRENT_TIMESTAMP() AS _loaded_at
+
+  FROM `graphic-mason-480715-m3.gcp_raw_data.ads_raw`
+),
+
+-- 🧹 Clean
+cleaned AS (
+  SELECT *
+  FROM source
+  WHERE campaign_id IS NOT NULL
+    AND date IS NOT NULL
+),
+
+-- 🔁 Deduplicate (better grain)
+deduplicated AS (
+  SELECT *
+  FROM (
+    SELECT *,
+      ROW_NUMBER() OVER (
+        PARTITION BY campaign_id, date
+        ORDER BY _loaded_at DESC
+      ) AS row_num
+    FROM cleaned
+  )
+  WHERE row_num = 1
+)
+
+-- 🚀 Final
+SELECT * EXCEPT(row_num)
+FROM deduplicated
