@@ -1,0 +1,123 @@
+# 🚀 Steps to Run / Simulate the Pipeline
+
+This project is built using Dataform and BigQuery. Since direct access to the original cloud environment may not be available, the pipeline can be simulated using the steps below.
+
+---
+
+## 🔹 Prerequisites
+
+* Google Cloud Project with BigQuery enabled
+* Basic knowledge of SQL
+* (Optional) Dataform access for full pipeline execution
+
+---
+
+## 🔹 Step 1: Load Sample Data
+
+Use the sample datasets provided in the `data_samples/` folder.
+
+Upload them into BigQuery as raw tables:
+
+| File               | Target Table |
+| ------------------ | ------------ |
+| raw_ga4_sample.csv | `raw.ga4`    |
+| raw_crm_sample.csv | `raw.crm`    |
+| raw_ads_sample.csv | `raw.ads`    |
+
+Ensure schema is auto-detected or aligned with SQL models.
+
+---
+
+## 🔹 Step 2: Run Silver Layer (Data Cleaning)
+
+Execute staging queries:
+
+* `silver/stg_ga4.sqlx`
+* `silver/stg_crm.sqlx`
+* `silver/stg_ads.sqlx`
+
+### Purpose:
+
+* Standardize data formats (especially date fields)
+* Handle null or invalid values
+* Prepare clean datasets for transformation
+
+---
+
+## 🔹 Step 3: Run Gold Layer (Business Logic)
+
+Execute:
+
+* `gold/int_campaign_performance.sqlx`
+
+### Purpose:
+
+* Join GA4, CRM, and Ads datasets
+* Apply business logic
+* Combine marketing and revenue data
+
+---
+
+## 🔹 Step 4: Run Diamond Layer (Final Output)
+
+Execute:
+
+* `diamond/final_marketing_report.sqlx`
+
+### Purpose:
+
+* Aggregate metrics at campaign and date level
+* Calculate performance KPIs
+* Generate analytics-ready dataset
+
+---
+
+## 🔹 Step 5: Validate Results
+
+Verify the final output table:
+
+* No duplicate records
+* No null values in key fields
+* Correct aggregations (spend, revenue, conversions)
+* Logical consistency between inputs and outputs
+
+---
+
+## 🔹 Optional: Using Dataform
+
+If using Dataform:
+
+1. Open the repository in Dataform
+2. Run all models
+3. Dataform will automatically resolve dependencies using `ref()`
+4. Ensure execution order:
+
+   * Silver → Gold → Diamond
+
+---
+
+## 🔹 Incremental Logic
+
+* The pipeline uses date-based filtering for incremental loads
+* Prevents reprocessing of historical data
+* Ensures idempotent execution
+
+---
+
+## ✅ Final Output
+
+The final table contains:
+
+* campaign_id
+* date
+* spend
+* clicks
+* impressions
+* conversions
+* revenue
+* returns
+* net revenue
+
+This dataset enables analysis of **true campaign performance and profitability**.
+
+---
