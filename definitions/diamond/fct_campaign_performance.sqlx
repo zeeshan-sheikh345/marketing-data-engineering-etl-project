@@ -1,0 +1,74 @@
+config {
+  type: "table",
+  schema: "diamond",
+  name: "fct_campaign_performance",
+  bigquery: {
+    partitionBy: "date",
+    clusterBy: ["campaign_id"]
+  }
+}
+
+WITH ads AS (
+  SELECT *
+  FROM ${ref("ads")}
+),
+
+performance AS (
+  SELECT *
+  FROM ${ref("int_campaign_performance")}
+),
+
+-- 🔗 Join Ads + Performance
+joined AS (
+  SELECT
+    a.date,
+    a.campaign_id,
+
+    -- 💰 Ads metrics
+    a.spend,
+    a.impressions,
+    a.clicks,
+
+    -- 📊 Performance metrics
+    IFNULL(p.orders, 0) AS orders,
+    IFNULL(p.revenue, 0) AS revenue,
+    IFNULL(p.returned_items, 0) AS returned_items,
+    IFNULL(p.avg_products_per_order, 0) AS avg_products_per_order
+
+  FROM ads a
+  LEFT JOIN performance p
+    ON a.date = p.date
+    AND a.campaign_id = p.campaign_id
+),
+
+-- 📈 Final metrics
+final AS (
+  SELECT
+    date,
+    campaign_id,
+
+    spend,
+    impressions,
+    clicks,
+
+    orders,
+    revenue,
+    returned_items,
+
+    -- 🎯 Core KPIs
+    SAFE_DIVIDE(revenue, spend) AS roas,
+    SAFE_DIVIDE(clicks, impressions) AS ctr,
+    SAFE_DIVIDE(orders, clicks) AS conversion_rate,
+
+    -- 💰 Business KPIs
+    SAFE_DIVIDE(revenue, orders) AS avg_order_value,
+    SAFE_DIVIDE(returned_items, orders) AS return_rate,
+
+    avg_products_per_order
+
+  FROM joined
+)
+
+-- 🚀 Final Output
+SELECT *
+FROM final
