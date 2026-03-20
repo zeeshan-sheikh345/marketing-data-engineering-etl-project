@@ -1,0 +1,5 @@
+{
+  "warehouse": "bigquery",
+  "defaultDatabase": "graphic-mason-480715-m3",
+  "defaultSchema": "analytics"
+}
