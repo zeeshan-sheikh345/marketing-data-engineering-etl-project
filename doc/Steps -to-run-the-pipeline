@@ -32,9 +32,9 @@ Ensure schema is auto-detected or aligned with SQL models.
 
 Execute staging queries:
 
-* `silver/stg_ga4.sqlx`
-* `silver/stg_crm.sqlx`
-* `silver/stg_ads.sqlx`
+* `silver/ga4.sqlx`
+* `silver/crm.sqlx`
+* `silver/ads.sqlx`
 
 ### Purpose:
 
@@ -104,7 +104,7 @@ If using Dataform:
 
 ---
 
-## ✅ Final Output
+✅ Final Output
 
 The final table contains:
 
@@ -118,6 +118,4 @@ The final table contains:
 * returns
 * net revenue
 
-This dataset enables analysis of **true campaign performance and profitability**.
-
----
+This dataset enables analysis of **true campaign performance and profitability.
