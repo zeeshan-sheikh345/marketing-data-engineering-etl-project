@@ -1,121 +1,201 @@
-# 🚀 Steps to Run / Simulate the Pipeline
+🚀 Steps to Run / Simulate the Pipeline
 
-This project is built using Dataform and BigQuery. Since direct access to the original cloud environment may not be available, the pipeline can be simulated using the steps below.
+This project is implemented using Dataform + BigQuery, with SQLX models stored in GitHub.
+The pipeline can be executed by connecting the repository to Dataform and running the models.
 
----
+🔹 Prerequisites
 
-## 🔹 Prerequisites
+Before running the pipeline, ensure:
 
-* Google Cloud Project with BigQuery enabled
-* Basic knowledge of SQL
-* (Optional) Dataform access for full pipeline execution
+Google Cloud Project with BigQuery enabled
+Dataform access (Cloud Dataform or Dataform UI)
+GitHub repository access
+Permission to create BigQuery datasets
+(Optional) jq installed for JSON → NDJSON conversion
+🔹 Step 1: Clone / Connect GitHub Repository
 
----
+The SQLX transformation logic is stored in GitHub.
 
-## 🔹 Step 1: Load Sample Data
+Open Dataform
+Create a new repository
+Connect to this GitHub repo
+Select default branch (main)
+Open workspace
 
-Use the sample datasets provided in the `data_samples/` folder.
+Dataform will automatically detect:
 
-Upload them into BigQuery as raw tables:
+definitions/
+  silver/
+  gold/
+  diamond/
 
-| File               | Target Table |
-| ------------------ | ------------ |
-| raw_ga4_sample.csv | `raw.ga4`    |
-| raw_crm_sample.csv | `raw.crm`    |
-| raw_ads_sample.csv | `raw.ads`    |
+These .sqlx files define the full pipeline.
 
-Ensure schema is auto-detected or aligned with SQL models.
+🔹 Step 2: Create BigQuery Dataset (Same as Project)
 
----
+Create datasets in BigQuery matching the pipeline layers:
 
-## 🔹 Step 2: Run Silver Layer (Data Cleaning)
+Create the following datasets:
 
-Execute staging queries:
+raw
+silver
+gold
+diamond
 
-* `silver/ga4.sqlx`
-* `silver/crm.sqlx`
-* `silver/ads.sqlx`
+Example:
 
-### Purpose:
+your_project.raw_data
+your_project.silver
+your_project.gold
+your_project.diamond
 
-* Standardize data formats (especially date fields)
-* Handle null or invalid values
-* Prepare clean datasets for transformation
+These datasets are referenced inside the SQLX models.
 
----
+🔹 Step 3: Load Sample Raw Data
 
-## 🔹 Step 3: Run Gold Layer (Business Logic)
+Upload sample datasets from data_samples/ into BigQuery:
 
-Execute:
+File	Target Table
+ga4_events_feb.json	raw.ga4
+crm_db.orders.json	raw.crm
+ads_data_010226_140226.csv	raw.ads
 
-* `gold/int_campaign_performance.sqlx`
+Enable schema auto-detection or align with expected schema.
 
-### Purpose:
+🔹 Step 3.1 : Convert JSON to NDJSON
 
-* Join GA4, CRM, and Ads datasets
-* Apply business logic
-* Combine marketing and revenue data
+If CRM data is provided as Mongo-style JSON array, convert to NDJSON before upload.
 
----
+jq -c '.[]' n_crm_db.orders.json > crm_ndjson.json
 
-## 🔹 Step 4: Run Diamond Layer (Final Output)
+Upload:
 
-Execute:
+crm_ndjson.json → raw.crm
 
-* `diamond/final_marketing_report.sqlx`
+This format is preferred for BigQuery ingestion and incremental loads.
 
-### Purpose:
+🔹 Step 4: Run Dataform Pipeline
 
-* Aggregate metrics at campaign and date level
-* Calculate performance KPIs
-* Generate analytics-ready dataset
+In Dataform:
 
----
+Click Start Execution
+Select Run All
+Dataform resolves dependencies automatically
+Execution order:
+Silver → Gold → Diamond
 
-## 🔹 Step 5: Validate Results
+Dataform will run:
 
-Verify the final output table:
+silver/ga4.sqlx
+silver/crm.sqlx
+silver/ads.sqlx
+gold/int_campaign_performance.sqlx
+diamond.fct_campaign_performance.sqlx
 
-* No duplicate records
-* No null values in key fields
-* Correct aggregations (spend, revenue, conversions)
-* Logical consistency between inputs and outputs
+🔹 Step 5: Pipeline Layers
+Silver Layer
 
----
+Cleans and standardizes raw datasets:
 
-## 🔹 Optional: Using Dataform
+Fix date formats
+Remove invalid records
+Normalize schema
 
-If using Dataform:
+Output:
 
-1. Open the repository in Dataform
-2. Run all models
-3. Dataform will automatically resolve dependencies using `ref()`
-4. Ensure execution order:
+silver.ga4
+silver.crm
+silver.ads
+Gold Layer
 
-   * Silver → Gold → Diamond
+Business transformation layer:
 
----
+Join GA4 + CRM + Ads
+Calculate conversions
+Calculate revenue
+Apply business logic
 
-## 🔹 Incremental Logic
+Output:
 
-* The pipeline uses date-based filtering for incremental loads
-* Prevents reprocessing of historical data
-* Ensures idempotent execution
+gold.int_campaign_performance
 
----
+Diamond Layer
+
+Final analytics-ready table:
+
+Campaign-level aggregation
+KPI calculations
+Net revenue logic
+
+Output:
+
+diamond.fct_campaign_performance.sqlx
+
+🔹 Step 6: Validate Results
+
+Verify final table:
+
+diamond.fct_campaign_performance.sqlx
+
+Check:
+
+No duplicate campaign_id + date
+No null key fields
+Revenue calculations correct
+Spend vs conversion consistency
+🔹 Incremental Logic
+
+The pipeline supports incremental execution:
+
+Date-based filtering
+Only new records processed
+Idempotent execution
+Prevents full refresh
+
+Implemented inside SQLX models using Dataform incremental logic.
+
+🔹 Automating the Pipeline (Scheduler)
+
+The Dataform pipeline can be automated using Dataform Scheduler.
+
+Steps:
+
+Open Dataform repository
+Go to Schedules
+Create new schedule
+Select Run All Actions
+Set frequency (Daily / Hourly)
+Choose execution time
+Save
+
+Example:
+
+Schedule: Daily
+Time: 02:00 AM
+Execution: Run All
+
+This will automatically:
+
+Ingest → Transform → Load → Build Final Table
+
+No manual execution required.
 
 ✅ Final Output
 
-The final table contains:
+Final table:
 
-* campaign_id
-* date
-* spend
-* clicks
-* impressions
-* conversions
-* revenue
-* returns
-* net revenue
+diamond.fct_campaign_performance.sqlx
 
-This dataset enables analysis of **true campaign performance and profitability.
+Contains:
+
+campaign_id
+date
+spend
+clicks
+impressions
+conversions
+revenue
+returns
+net_revenue
+
+This dataset enables analysis of true campaign performance and profitability using a fully automated Dataform pipeline.
