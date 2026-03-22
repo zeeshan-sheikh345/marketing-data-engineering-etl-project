@@ -1,136 +1,92 @@
-# ⚠️ Assumptions & Limitations
+⚠️ Assumptions & Limitations
+📌 Assumptions
+1. Consistent Join Key (campaign_id)
 
-## 📌 Assumptions
+It is assumed that campaign_id is available and consistent across GA4, Ads, and CRM datasets, enabling accurate joins and aggregation across sources.
 
-### 1. Consistent Join Key (campaign_id)
-
-It is assumed that `campaign_id` is available and consistent across GA4, Ads, and CRM datasets, enabling accurate joins and aggregation across sources.
-
----
-
-### 2. Date-Based Incremental Logic
+2. Date-Based Incremental Logic
 
 The pipeline assumes that all datasets contain a valid date field used for incremental processing. New data is identified using event date or ingestion date to avoid reprocessing historical data.
 
----
+3. Batch File-Based Ingestion
 
-### 3. Batch File-Based Ingestion
+Data ingestion is performed using a batch-based approach. Source systems export data files (CSV, JSON, AVRO) which are first stored in Google Cloud Storage (GCS) and then loaded into BigQuery raw tables using batch load jobs.
 
-Data ingestion is performed using a batch-based approach. Source systems export data files (CSV, JSON, AVRO) which are first stored in **Google Cloud Storage (GCS)** and then loaded into **BigQuery raw tables** using batch load jobs.
-
----
-
-### 4. Append-Only Raw Data
+4. Append-Only Raw Data
 
 Raw ingestion tables are assumed to be append-only. Historical records are not updated in the raw layer, and incremental logic in downstream Dataform models handles deduplication and updates.
 
----
-
-### 5. Semi-Structured Data Preservation (NoSQL Layer)
+5. Semi-Structured Data Preservation (NoSQL Layer)
 
 GA4 and CRM datasets are stored in BigQuery using nested and repeated structures, preserving their document-style format. This acts as a NoSQL-style storage layer before transformation into relational tables.
 
----
-
-### 6. CRM Data Structure (MongoDB)
+6. CRM Data Structure (MongoDB)
 
 CRM data is assumed to originate from a MongoDB (NoSQL) source with a semi-structured schema. Nested product arrays and return information are flattened during transformation.
 
----
-
-### 7. GA4 Data Availability
+7. GA4 Data Availability
 
 GA4 data is assumed to be exported as JSON/AVRO event logs and landed in Google Cloud Storage before being batch loaded into BigQuery raw tables for transformation.
 
----
-
-### 8. Data Quality at Source Level
+8. Data Quality at Source Level
 
 It is assumed that source systems provide reasonably clean data, with only minor inconsistencies such as date format variations or null values.
 
----
-
-### 9. Returns & Revenue Mapping
+9. Returns & Revenue Mapping
 
 CRM data is assumed to contain sufficient fields to identify returned items and calculate net revenue accurately.
 
----
-
-### 10. Time Granularity
+10. Time Granularity
 
 All datasets are assumed to be aligned at a daily granularity for aggregation and reporting.
 
----
-
-## ⚠️ Limitations
-
-### 1. Sample Data Instead of Full Production Data
+⚠️ Limitations
+1. Sample Data Instead of Full Production Data
 
 The project uses sample datasets for demonstration purposes, which may not fully represent real-world data volume, variability, or complexity.
 
----
-
-### 2. No Real-Time Processing
+2. No Real-Time Processing
 
 The pipeline is batch-based and does not support real-time or streaming data ingestion. Data freshness depends on batch file availability.
 
----
+3. Limited Error Handling & Logging
 
-### 3. Limited Error Handling & Logging
+Error handling is implemented using SQL-based techniques such as SAFE_CAST and filtering. Advanced logging, retry logic, and monitoring are not implemented.
 
-Error handling is implemented using SQL-based techniques such as `SAFE_CAST` and filtering. Advanced logging, retry logic, and monitoring are not implemented.
-
----
-
-### 4. Schema Evolution Handling
+4. Schema Evolution Handling
 
 Changes in source schema (especially GA4 or MongoDB) are not automatically handled and may require manual updates to transformation logic.
 
----
-
-### 5. Simplified Data Quality Checks
+5. Simplified Data Quality Checks
 
 Data validation focuses on basic checks such as null handling, deduplication, and type casting. Advanced data quality frameworks are not implemented.
 
----
-
-### 6. No External Orchestration Layer
+6. No External Orchestration Layer
 
 The pipeline is executed manually or through Dataform scheduling. External orchestration tools such as Airflow or Cloud Composer are not implemented.
 
----
-
-### 7. Performance Optimization Scope
+7. Performance Optimization Scope
 
 Basic performance optimizations such as partitioning and clustering are implemented. However, advanced optimization techniques such as materialized views and workload tuning are not included.
 
----
-
-### 8. Dependency on Source Data Accuracy
+8. Dependency on Source Data Accuracy
 
 The accuracy of final outputs depends on the correctness of input data from GA4, Ads, and CRM systems.
 
----
-
-### 9. File-Level Deduplication Not Implemented
+9. File-Level Deduplication Not Implemented
 
 The ingestion layer assumes that duplicate files are not reloaded into BigQuery. Deduplication is handled in the transformation layer rather than during file ingestion.
 
----
-
-### 10. Late Arriving Data Handling
+10. Late Arriving Data Handling
 
 The incremental logic assumes data arrives in chronological order. Late-arriving records outside the incremental window may require manual backfill.
 
----
-
-## 🔧 Potential Improvements
-
-* Implement orchestration using Airflow or Cloud Composer
-* Add automated data quality checks (e.g., Great Expectations)
-* Introduce monitoring and alerting mechanisms
-* Handle schema evolution dynamically
-* Implement file-level deduplication in ingestion layer
-* Enable late-arriving data reprocessing
-* Optimize performance using advanced BigQuery techniques
-* Enable near real-time data processing
+🔧 Potential Improvements
+Implement orchestration using Airflow or Cloud Composer
+Add automated data quality checks (e.g., Great Expectations)
+Introduce monitoring and alerting mechanisms
+Handle schema evolution dynamically
+Implement file-level deduplication in ingestion layer
+Enable late-arriving data reprocessing
+Optimize performance using advanced BigQuery techniques
+Enable near real-time data processing
