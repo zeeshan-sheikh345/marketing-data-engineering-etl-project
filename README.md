@@ -36,14 +36,34 @@ To demonstrate hands-on experience with:
 The pipeline follows a **multi-layered architecture** inspired by modern data platforms:
 
 ```id="arch1"
-Raw Layer (BigQuery / MongoDB Extract)
+
+Source Systems (CSV / JSON / NoSQL)
+        ↓
+GCS Landing Layer (Batch Files)
+        ↓
+Raw Layer (BigQuery External Ingestion)
         ↓
 Silver Layer (Data Cleaning & Standardization)
         ↓
 Gold Layer (Business Logic & Joins)
         ↓
 Diamond Layer (Final Aggregated Reporting Tables)
+
 ```
+📥 Batch Ingestion Design
+
+The pipeline uses batch ingestion rather than streaming.
+Data files are periodically exported from source systems and stored in Google Cloud Storage.
+BigQuery load jobs are then used to ingest these files into raw tables.
+
+Key characteristics:
+
+Batch-based ingestion from GCS
+Multiple source formats (CSV, JSON, AVRO)
+Support for incremental processing in transformation layer
+Raw data preserved for reprocessing
+Separation of ingestion and transformation layers
+
 
 ### 🔹 Layer Mapping (as used in repository)
 
@@ -58,12 +78,45 @@ Diamond Layer (Final Aggregated Reporting Tables)
 
 ## 🔄 ETL Pipeline
 
-### 1. Ingestion
+### 1. Ingestion (Batch Pipeline)
 
-* GA4 data ingested from BigQuery export
-* CRM data ingested from MongoDB (NoSQL source)
-* Ads data ingested from structured tables
-* Incremental loading implemented using date-based filtering
+This pipeline follows a batch ingestion architecture where data from multiple source types is first landed in Google Cloud Storage (GCS) and then loaded into BigQuery raw tables.
+
+Source Types Used
+
+Ads data — Structured CSV files
+GA4 data — Semi-structured AVRO/JSON event logs
+CRM data — NoSQL JSON documents (MongoDB export)
+
+Ingestion Flow
+```id="struct1"
+Source Systems
+   ├── Ads CSV files
+   ├── GA4 event logs (JSON / AVRO)
+   └── CRM MongoDB export (JSON)
+            │
+            ▼
+Google Cloud Storage (GCS)
+            │
+            ▼
+BigQuery Raw Tables (Batch Load)
+            │
+            ▼
+Dataform Transformations (Silver → Gold → Diamond)
+```
+Raw Tables
+
+gcp_raw_data.ads_raw
+gcp_raw_data.ga4_raw
+gcp_raw_data.crm_raw
+
+Batch ingestion is performed using BigQuery load jobs from GCS.
+
+Example:
+
+bq load gcp_raw_data.ads_raw gs://bucket/ads.csv
+
+This approach demonstrates ingestion from multiple data formats and storage types, satisfying both relational and NoSQL ingestion requirements.
 
 ### 2. Transformation
 
@@ -76,6 +129,17 @@ Diamond Layer (Final Aggregated Reporting Tables)
 
 * Final datasets stored in BigQuery (analytics layer)
 * CRM data originates from NoSQL but is transformed into relational format for analysis
+
+  NoSQL Data Storage
+  Raw CRM and GA4 data are stored in BigQuery using nested and repeated structures, preserving their document-style format. This acts as a NoSQL-style storage layer before transformation into relational tables.
+
+Examples:
+
+CRM products stored as repeated records
+GA4 event_params stored as nested arrays
+Raw data preserved without flattening
+
+The data is later transformed into relational tables in the Silver layer.
 
 ---
 
@@ -95,20 +159,59 @@ Primary Key:
 
 ---
 
-### NoSQL Model (CRM – MongoDB)
+🗄️ NoSQL Data Model Design
+Selected NoSQL Model: Document-Based Structure
 
-* Document-based structure
-* Flexible schema for customer and lead data
+The raw GA4 and CRM datasets are stored using a document-style data model in BigQuery.
+This approach preserves nested and repeated JSON structures before transformation into relational tables.
 
----
+Example — CRM Document Model
+
+Each order is stored as a document with nested products:
+```id="struct1"
+{
+ "order_id": "O1",
+ "user_id": "U1",
+ "products": [
+   { "product_id": "P1", "price": 100 },
+   { "product_id": "P2", "price": 200 }
+ ]
+}
+```
+This structure is best suited for document-based NoSQL storage because:
+
+Flexible schema
+Nested arrays
+Varying number of products per order
+Semi-structured data
+
+Example — GA4 Event Model
+
+GA4 events are stored as nested event documents:
+```id="struct1"
+{
+ "event_name": "purchase",
+ "event_params": [
+   {"key": "transaction_id", "value": "T1"},
+   {"key": "campaign_id", "value": "C1"}
+ ]
+}
+```
+This structure fits document-based NoSQL modeling because:
+
+dynamic event parameters
+schema changes across events
+nested attributes
+log-style data
 
 ### SQL vs NoSQL Justification
 
-| Dataset | Storage Type    | Reason                                         |
-| ------- | --------------- | ---------------------------------------------- |
-| CRM     | NoSQL (MongoDB) | Flexible schema, semi-structured customer data |
-| GA4     | SQL (BigQuery)  | Structured event export                        |
-| Ads     | SQL             | Aggregation and reporting use cases            |
+| Dataset            | Storage Type | Data Model | Reason                                 |
+| ------------------ | ------------ | ---------- | -------------------------------------- |
+| CRM                | NoSQL        | Document   | Nested products array, flexible schema |
+| GA4                | NoSQL        | Document   | Event logs with dynamic parameters     |
+| Ads                | SQL          | Relational | Structured campaign metrics            |
+| Silver/Gold tables | SQL          | Relational | Analytics & joins                      |
 
 ---
 
@@ -143,21 +246,28 @@ definitions/
     ads.sqlx
 
   gold/
+    int_transactions.sqlx
+    int_orders.sqlx
     int_campaign_performance.sqlx
 
   diamond/
     fct_campaign_performance.sqlx
 
 data_samples/
+output/
 docs/
 README.md
+
 ```
+<img width="1497" height="203" alt="image" src="https://github.com/user-attachments/assets/d7225f66-4ee9-40bc-9264-546cdf070b14" />
+
 
 ---
 
 ## 🚀 Tools & Technologies
 
 * Google BigQuery
+* Google cloud Storage
 * Dataform (SQL-based transformation tool)
 * MongoDB (CRM source)
 * SQL (Standard SQL)
